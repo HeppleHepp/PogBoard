@@ -22,8 +22,8 @@ LiquidCrystal_I2C lcd(0x27,20,4);             // Tells the Arduino the size of t
 
 const int LoCurrentLimit        = 15;         // 
 const int HiCurrentLimit        = 35;         // 
-const int OUTPUT_UPPER          = 204;        // If you are using Loki as a data logger then these are not required :)
-const int OUTPUT_LOWER          = 38;         // The lower and higher values for the pwm output. Most PWM's e.g. the 4QD                                            
+const int OUTPUT_UPPER          = 255;        // If you are using Loki as a data logger then these are not required :)
+const int OUTPUT_LOWER          = 45;         // The lower and higher values for the pwm output. Most PWM's e.g. the 4QD                                            
 const float ref_voltage        = 5;          // 5 Volt ref for readings
 const float APB                 = 0.31;       // Amps per Bit (A calibrated thing)
 const float  totalWheelDiameter = 1.194;      // Wheel diameter in meters (Tyre inflated)
@@ -53,24 +53,23 @@ int gmem                    = 0;
 int pmem                    = 0;
 int tmem                    = 1;
 int throtGo                 = 0;
-int byPass                  = 1;
+int Boost                  = 1;
 int BoostLimit              = 0;
 unsigned long Rtime         = 0;              // Timers\/\/\/\/
 unsigned long tempSenMillis = 0;
 unsigned long lcdMillis     = 0;
-unsigned long byPassMillis  = 0;
+unsigned long BoostMillis  = 0;
 unsigned long case3Millis   = 0;
 const int lcdInterval       = 500;
-const int byPassInterval    = 400;
+const int BoostInterval    = 400;
 const int case3Interval     = 100;
 const int tempSenInterval   = 4000;           // Timers/\/\/\/\
-
 
           
 #define VREF            A1                    // Input reference for Current sensor
 #define chipSelect      10                    // define the chipselect for the SD card
 #define Battery_Voltage A3                  // define battery voltage read pin
-#define byPass_Pin      7                     // switch for override
+#define Boost_Pin      7                     // switch for override
 #define throttlePin     6                     // PTM Throttle mode 
 #define Amp_In          A0                    // Current sensor read pin
 #define PWM_PIN         9                     // pwm output pin
@@ -106,7 +105,7 @@ void setup()
 
   
   pinMode(throttlePin, INPUT);
-  pinMode(byPass_Pin, INPUT);
+  pinMode(Boost_Pin, INPUT);
   
   pinMode(Pot1_IN, INPUT);
   pinMode(Motor_Voltage, INPUT);                                            //////////////////////////////////
@@ -210,7 +209,7 @@ void loop()
   TimedEvents(); 
   
   int throttle = digitalRead(throttlePin);
-  byPass = digitalRead(byPass_Pin);
+  Boost = digitalRead(Boost_Pin);
 
   if (MotorRPM<335)
   {
@@ -225,15 +224,17 @@ void loop()
 
  readCurrent();     
   
-  if (throttle == 0 || byPass == 0 )
+  if (throttle == 0 || Boost == 0 )
   {   
-    if (throtGo == 0 && byPass == 1 && Current<=CurrentLimit)   //if this is the first time in loop 
+    if (throtGo == 0 && Boost == 1 && Current<=CurrentLimit)   //if this is the first time in loop 
     {
         pwm = 85;                                                 //roughly 25% throttle
         throtGo = 1; 
+        lcd.setCursor(0,3);
+        lcd.print("AUTO");
     }   
 
-    else if (byPass == 0 )
+    else if (Boost == 0 )
     {
         warp = 3;
         if(tmem == 1)
@@ -293,18 +294,11 @@ void loop()
     lcd.print("     "); 
   } 
 
-  if (warp == 1)
-  {
-    if (pwm >= 104)
-    {
-      pwm = 104; 
-    }
-  }
-  else if (pwm >= OUTPUT_UPPER)
-  {  
-    pwm = OUTPUT_UPPER;   
-  }
 
+  if (pwm >= OUTPUT_UPPER)
+  {
+    pwm = OUTPUT_UPPER
+  }
   if (pwm <= OUTPUT_LOWER)
   {
     pwm = OUTPUT_LOWER;
@@ -368,7 +362,7 @@ float readMotorRPM()
   unsigned long tempLastMotorPollTime = lastMotorSpeedPollTime;                     // Use variables to remember the time when the last RPM was calculated.
   
   lastMotorSpeedPollTime = millis();                                                // Record the current time to be used in the this cycle and the next.
-  float motorRevolutions = tempMotorPoll / 1;                                       // Now calculate the number of revolutions of the motor shaft
+  float motorRevolutions = tempMotorPoll / 4;                                       // Now calculate the number of revolutions of the motor shaft
   
   motorRevolutions = motorRevolutions * 60.0;                                       // Calculate the revolutions in one minute
   float timeDifference = (lastMotorSpeedPollTime - tempLastMotorPollTime)/1000.0;   // Find the time difference in seconds
@@ -389,7 +383,7 @@ void display_LCD()                                                              
   lcd.print(Current);                                                               // lcd.print will then display the variable or string chosen on that cursor location
 
   int pwmPerc = pwm - OUTPUT_LOWER;                                                 // calculating the percentage output of the pwm 
-  pwmPerc = pwmPerc/1.66; 
+  pwmPerc = pwmPerc/2.1; 
   lcd.setCursor(15,3);
   lcd.print("   ");
   lcd.setCursor(15,3);
@@ -465,7 +459,7 @@ void TimedEvents()                                                              
     MotorRPM = readMotorRPM();                                                      // read the motorRPM using the function
   }
 
-/*/
+
   if (millis()>= tempSenMillis + tempSenInterval)                                   // DO the same here but for a different time interval
   {
     tempSenMillis += tempSenInterval;                                   
@@ -473,7 +467,7 @@ void TimedEvents()                                                              
     displayTemp(tempSensor.getTempC(thermometerAddress));                           // don't particularly know what this is doing but you need it trust me XD
     
   }
-/*/ 
+
 /*/
 NOTE: using this type of temp sensor can create delays of up to 300ms when using a 12 bit ADC (we use 10 Bit so it's 70ms) which is quite significant when controlling the car and searching for throttle inputs.
       To get rid of such a delay, it would be wise to use a sensor that does not rely on another library to gather the data as that is when unknown delays can occur as it isn't your code.
