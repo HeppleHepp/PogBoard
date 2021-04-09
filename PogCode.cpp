@@ -22,7 +22,7 @@ LiquidCrystal_I2C lcd(0x27,20,4);             // Tells the Arduino the size of t
 
 const int LoCurrentLimit        = 15;         // 
 const int HiCurrentLimit        = 48;         // 
-const int OUTPUT_UPPER          = 255;        // If you are using Loki as a data logger then these are not required :)
+const int OUTPUT_UPPER          = 205;        // If you are using Loki as a data logger then these are not required :)
 const int OUTPUT_LOWER          = 45;         // The lower and higher values for the pwm output. Most PWM's e.g. the 4QD                                            
 const float ref_voltage         = 5;          // 5 Volt ref for readings
 const float APB                 = 0.31;       // Amps per Bit (A calibrated thing)
@@ -346,11 +346,11 @@ float readMotorVoltage()
 
                                                                   // Calculates the voltage seen on the A0 Pin (Up to 5V given we are using the TSR 1-2450)
    tempVoltage = (tempVoltage/1024)*ref_voltage;                  // This is a multiplier which is related to the potential divider ratio. 
-   tempVoltage = (tempVoltage * 6) + 0.35;
+   tempVoltage = (tempVoltage * 6) + 0.2;
                                                                   // For us, this ratio is 1/6 which means we step the voltage from 30V --> 5V so the arduino can read. 
                                                                                                                                    
    tempVoltage = constrain(tempVoltage,0,30);                     // Gets rid of zero errors so the LCD display doesn't bug out
-   // tempVoltage = batteryVoltage - tempVoltage;
+   tempVoltage = batteryVoltage - tempVoltage;
    return (tempVoltage);                                          // Returns the voltage to the function readBatteryVoltage()
   
 }
@@ -384,7 +384,7 @@ void display_LCD()                                                              
   lcd.print(Current);                                                               // lcd.print will then display the variable or string chosen on that cursor location
 
   int pwmPerc = pwm - OUTPUT_LOWER;                                                 // calculating the percentage output of the pwm 
-  pwmPerc = pwmPerc/2.1; 
+  pwmPerc = pwmPerc/1.57; 
   lcd.setCursor(15,3);
   lcd.print("   ");
   lcd.setCursor(15,3);
@@ -418,7 +418,7 @@ void save_Data()                                                                
 {
   Rtime = millis();                                                                 // Find the current time the the data was recorded
   int pwmPerc = pwm - OUTPUT_LOWER;                                                 // calculating the percentage output of the pwm 
-  pwmPerc = (pwmPerc/2.1);
+  pwmPerc = (pwmPerc/1.57);
   String com = ",";  
   String Mode = "#";  
   if (Boost == 1 && throttle == 0)
