@@ -21,10 +21,10 @@ LiquidCrystal_I2C lcd(0x27,20,4);             // Tells the Arduino the size of t
 /////////////////////////////////////////////////////////////////////////
 
 const int LoCurrentLimit        = 15;         // 
-const int HiCurrentLimit        = 35;         // 
+const int HiCurrentLimit        = 48;         // 
 const int OUTPUT_UPPER          = 255;        // If you are using Loki as a data logger then these are not required :)
 const int OUTPUT_LOWER          = 45;         // The lower and higher values for the pwm output. Most PWM's e.g. the 4QD                                            
-const float ref_voltage        = 5;          // 5 Volt ref for readings
+const float ref_voltage         = 5;          // 5 Volt ref for readings
 const float APB                 = 0.31;       // Amps per Bit (A calibrated thing)
 const float  totalWheelDiameter = 1.194;      // Wheel diameter in meters (Tyre inflated)
 float Ratio                     = 3;          // calculate gear ratio using DrivenGear/SprocketGear  <<<<-------- YOU MUST CHANGE THIS
@@ -53,7 +53,8 @@ int gmem                    = 0;
 int pmem                    = 0;
 int tmem                    = 1;
 int throtGo                 = 0;
-int Boost                  = 1;
+int Boost                   = 1;
+int throttle                = 1;
 int BoostLimit              = 0;
 unsigned long Rtime         = 0;              // Timers\/\/\/\/
 unsigned long tempSenMillis = 0;
@@ -89,7 +90,7 @@ DallasTemperature tempSensor(&oneWire);
 
 void setup() 
 {
-  analogReference(EXTERNAL);                                          // Uses the external reference of the 5V supplied by the TSR 1-2450
+  analogReference(EXTERNAL);                            // Uses the external reference of the 5V supplied by the TSR 1-2450
   
   Serial.begin(115200);                                               // set baud rate of the arduino (can be 9600)
   lcd.init();                                                         // initialise the lcd 
@@ -177,7 +178,7 @@ void setup()
 
   digitalWrite(chipSelect,LOW);                                                     // Begin SPI interfacing by taking Chip Select LOW
   
-  String (Spacer) = " ";
+  String (Spacer) = "Time,BattV,Curnt,MotoV,MRPM,MTemp,PWM,Mode";
   File dataFile = SD.open("datalog.txt", FILE_WRITE);                               // Write the datastring to the SD card 
   if(dataFile)                                                                      // check if the file has been created successfully or if it already exists
   {
@@ -208,7 +209,7 @@ void loop()
   readCurrent(); 
   TimedEvents(); 
   
-  int throttle = digitalRead(throttlePin);
+  throttle = digitalRead(throttlePin);
   Boost = digitalRead(Boost_Pin);
 
   if (MotorRPM<335)
@@ -297,7 +298,7 @@ void loop()
 
   if (pwm >= OUTPUT_UPPER)
   {
-    pwm = OUTPUT_UPPER
+    pwm = OUTPUT_UPPER;
   }
   if (pwm <= OUTPUT_LOWER)
   {
@@ -331,7 +332,7 @@ float readBatteryVoltage()
 
                                                                   // Calculates the voltage seen on the A0 Pin (Up to 5V given we are using the TSR 1-2450)
    tempVoltage = (tempVoltage/1024)*ref_voltage;                  // This is a multiplier which is related to the potential divider ratio. 
-   tempVoltage = (tempVoltage * 6) + 0.2;
+   tempVoltage = (tempVoltage * 6) + 0.35;
                                                                   // For us, this ratio is 1/6 which means we step the voltage from 30V --> 5V so the arduino can read. 
                                                                                                                                    
    tempVoltage = constrain(tempVoltage,0,30);                     // Gets rid of zero errors so the LCD display doesn't bug out
@@ -345,7 +346,7 @@ float readMotorVoltage()
 
                                                                   // Calculates the voltage seen on the A0 Pin (Up to 5V given we are using the TSR 1-2450)
    tempVoltage = (tempVoltage/1024)*ref_voltage;                  // This is a multiplier which is related to the potential divider ratio. 
-   tempVoltage = (tempVoltage * 6) + 0.2;
+   tempVoltage = (tempVoltage * 6) + 0.35;
                                                                   // For us, this ratio is 1/6 which means we step the voltage from 30V --> 5V so the arduino can read. 
                                                                                                                                    
    tempVoltage = constrain(tempVoltage,0,30);                     // Gets rid of zero errors so the LCD display doesn't bug out
@@ -417,11 +418,21 @@ void save_Data()                                                                
 {
   Rtime = millis();                                                                 // Find the current time the the data was recorded
   int pwmPerc = pwm - OUTPUT_LOWER;                                                 // calculating the percentage output of the pwm 
-  pwmPerc = (pwmPerc/1.56);
-  String com = ",";                                                                 // assign the comma symbol a variable to save dynamic memory
+  pwmPerc = (pwmPerc/2.1);
+  String com = ",";  
+  String Mode = "#";  
+  if (Boost == 1 && throttle == 0)
+  {
+    String Mode = "A";      
+  }
+  else if (Boost == 0 && throttle == 1)
+  {
+    String Mode = "B";
+  }
+
   digitalWrite(chipSelect,LOW);                                                     // Begin SPI interfacing by taking Chip Select LOW
   
-  String (dataString) = String(batteryVoltage)+(com)+String(Current)+(com)+String(MotorRPM)+(com)+String(tempOne)+(com)+String(pwmPerc)+(com)+String(Rtime);   // Data to be written to SD card
+  String (dataString) = String(Rtime)+(com)+String(batteryVoltage)+(com)+String(Current)+(com)+String(motorVoltage)+(com)+String(MotorRPM)+(com)+String(tempOne)+(com)+String(pwmPerc)+(com)+(Mode);   // Data to be written to SD card
     
   File dataFile = SD.open("datalog.txt", FILE_WRITE);                               // Write the datastring to the SD card 
   if(dataFile)                                                                      // check if the file has been created successfully or if it already exists
