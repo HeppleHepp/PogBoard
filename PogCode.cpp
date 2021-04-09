@@ -278,10 +278,12 @@ void loop()
         if(Current>BoostLimit)
         {
             pwm -= 1;
+            break;
         }
         else if (Current<=BoostLimit)
         {
           pwm += 1;
+          break;
         }     
     }
   }
@@ -342,16 +344,16 @@ float readBatteryVoltage()
 float readMotorVoltage()
 {
   
-   float tempVoltage = analogRead(Motor_Voltage);               // Reads the 10 Bit ADC Value from the battery read pin (A0)
+   float tempVoltage = analogRead(Motor_Voltage);                 // Reads the 10 Bit ADC Value from the battery read pin (A0)
 
                                                                   // Calculates the voltage seen on the A0 Pin (Up to 5V given we are using the TSR 1-2450)
    tempVoltage = (tempVoltage/1024)*ref_voltage;                  // This is a multiplier which is related to the potential divider ratio. 
    tempVoltage = (tempVoltage * 6) + 0.2;
                                                                   // For us, this ratio is 1/6 which means we step the voltage from 30V --> 5V so the arduino can read. 
-                                                                                                                                   
-   tempVoltage = constrain(tempVoltage,0,30);                     // Gets rid of zero errors so the LCD display doesn't bug out
+                                                                  // Gets rid of zero errors so the LCD display doesn't bug out
    tempVoltage = batteryVoltage - tempVoltage;
-   return (tempVoltage);                                          // Returns the voltage to the function readBatteryVoltage()
+   float value = constrain(tempVoltage,0,30);
+   return (value);                                                // Returns the voltage to the function readBatteryVoltage()
   
 }
 
