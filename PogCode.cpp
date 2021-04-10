@@ -21,7 +21,7 @@ LiquidCrystal_I2C lcd(0x27,20,4);             // Tells the Arduino the size of t
 /////////////////////////////////////////////////////////////////////////
 
 const int LoCurrentLimit        = 15;         // 
-const int HiCurrentLimit        = 48;         // 
+const int HiCurrentLimit        = 20;         // 
 const int OUTPUT_UPPER          = 205;        // If you are using Loki as a data logger then these are not required :)
 const int OUTPUT_LOWER          = 45;         // The lower and higher values for the pwm output. Most PWM's e.g. the 4QD                                            
 const float ref_voltage         = 5;          // 5 Volt ref for readings
@@ -47,6 +47,8 @@ float motorVoltage          = 0;
 float Current               = 0;              // variable to store current function  
 int MotorRPM                = 0;
 float tempOne               = 0;              //motor temp in degrees C
+float prev                  = 0;
+float mTarget               = 0;
 int pwm                     = 0;               
 int warp                    = 0;
 int gmem                    = 0;
@@ -59,11 +61,11 @@ int BoostLimit              = 0;
 unsigned long Rtime         = 0;              // Timers\/\/\/\/
 unsigned long tempSenMillis = 0;
 unsigned long lcdMillis     = 0;
-unsigned long BoostMillis  = 0;
-unsigned long case3Millis   = 0;
+unsigned long BoostMillis   = 0;
+unsigned long contMillis    = 0;
 const int lcdInterval       = 500;
-const int BoostInterval    = 400;
-const int case3Interval     = 100;
+const int BoostInterval     = 400;
+const int contInterval      = 200;
 const int tempSenInterval   = 4000;           // Timers/\/\/\/\
 
           
@@ -202,17 +204,16 @@ void setup()
 void loop()
 {
 
-  
   batteryVoltage = readBatteryVoltage();
   motorVoltage = readMotorVoltage();
+
   Pot1();
-  readCurrent(); 
   TimedEvents(); 
   
   throttle = digitalRead(throttlePin);
   Boost = digitalRead(Boost_Pin);
 
-  if (MotorRPM<335)
+  if (MotorRPM<900)
   {
     CurrentLimit = LoCurrentLimit;
     warp = 1;
@@ -229,7 +230,8 @@ void loop()
   {   
     if (throtGo == 0 && Boost == 1 && Current<=CurrentLimit)   //if this is the first time in loop 
     {
-        pwm = 85;                                                 //roughly 25% throttle
+        pwm = 85; 
+        mTarget = 5;                                                //roughly 25% throttle
         throtGo = 1; 
         lcd.setCursor(0,3);
         lcd.print("AUTO");
@@ -250,17 +252,34 @@ void loop()
     {         
     case 1:
         readCurrent();
+        batteryVoltage = readBatteryVoltage();
+        motorVoltage = readMotorVoltage();     
+
         if (Current > CurrentLimit)
         {
-          pwm -= 1;
-          break;
-        } 
-        else
-        {
-          pwm += 1;
-          
-          break;
+            pwm -= 2;
         }
+        else if (millis() >= contMillis + contInterval)                                          // Timer that updates the display and saves the data to the SD card every half a second (500ms)     
+        {
+          contMillis += contInterval;
+          pmem = 1;
+          if (motorVoltage <= mTarget)
+          {
+              pwm +=1;
+          }
+          else if (motorVoltage > mTarget)
+          {
+              mTarget += 2
+              mTarget = constrain(mTarget,0,batteryVoltage)
+          }
+        }
+        
+        if (millis() >= contMillis + contInterval && pmem == 0)
+        {
+          contMillis += contInterval;
+        }    
+        pmem = 0
+        
       case 2:
         readCurrent();
         if(Current>CurrentLimit)
@@ -319,13 +338,18 @@ void loop()
 
 void readCurrent ()
 {
-  float difference = 0;                                           // Reset previous calculation
-  float tempCurrent = analogRead(Amp_In);                         // Read the ADC value from the current sensor (2.5V is 0A --> 5V is 150A)
-  int VRefRead = analogRead(VREF);                                // Read reference voltage to find the difference between the Amp_In pin and the VRef Pin which gives the 10 bit difference in voltage
-  difference = (tempCurrent  - VRefRead) - 2;                           // calculate that difference
-  tempCurrent = difference*APB;                                   // Multiply the difference by the amps per bit value. (This must be calculated) 
-  tempCurrent = constrain(tempCurrent,0,250);                     // Constrain so there are no error values on the LCD screen
-  Current = tempCurrent;                                          // Use the Current global variable to store the Current value
+  for (uint8_t i = 0; i < 4; i++)
+  {
+    float difference = 0;                                         // Reset previous calculation
+    float tempCurrent = analogRead(Amp_In);                       // Read the ADC value from the current sensor (2.5V is 0A --> 5V is 150A)
+    int VRefRead = analogRead(VREF);                              // Read reference voltage to find the difference between the Amp_In pin and the VRef Pin which gives the 10 bit difference in voltage
+    difference = (tempCurrent  - VRefRead) - 2;                   // calculate that difference
+    tempCurrent = difference*APB;                                 // Multiply the difference by the amps per bit value. (This must be calculated) 
+    tempCurrent = constrain(tempCurrent,0,250);                   // Constrain so there are no error values on the LCD screen
+    prev += tempCurrent;                                          // Use the Current global variable to store the Current value   
+  }
+  Current = prev/4;
+  prev = 0;
 }
 
 float readBatteryVoltage()
