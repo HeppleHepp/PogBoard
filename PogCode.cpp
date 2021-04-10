@@ -269,8 +269,8 @@ void loop()
           }
           else if (motorVoltage > mTarget)
           {
-              mTarget += 2
-              mTarget = constrain(mTarget,0,batteryVoltage)
+              mTarget += 2;
+              mTarget = constrain(mTarget,0,batteryVoltage);
           }
         }
         
@@ -278,7 +278,7 @@ void loop()
         {
           contMillis += contInterval;
         }    
-        pmem = 0
+        pmem = 0;
         
       case 2:
         readCurrent();
