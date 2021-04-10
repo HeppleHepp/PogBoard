@@ -206,7 +206,6 @@ void loop()
 
   batteryVoltage = readBatteryVoltage();
   motorVoltage = readMotorVoltage();
-
   Pot1();
   TimedEvents(); 
   
@@ -258,6 +257,7 @@ void loop()
         if (Current > CurrentLimit)
         {
             pwm -= 2;
+            
         }
         else if (millis() >= contMillis + contInterval)                                          // Timer that updates the display and saves the data to the SD card every half a second (500ms)     
         {
@@ -272,6 +272,7 @@ void loop()
               mTarget += 2;
               mTarget = constrain(mTarget,0,batteryVoltage);
           }
+          
         }
         
         if (millis() >= contMillis + contInterval && pmem == 0)
@@ -279,6 +280,7 @@ void loop()
           contMillis += contInterval;
         }    
         pmem = 0;
+        break;
         
       case 2:
         readCurrent();
@@ -410,7 +412,7 @@ void display_LCD()                                                              
   lcd.print(Current);                                                               // lcd.print will then display the variable or string chosen on that cursor location
 
   int pwmPerc = pwm - OUTPUT_LOWER;                                                 // calculating the percentage output of the pwm 
-  pwmPerc = pwmPerc/1.57; 
+  pwmPerc = pwmPerc/1.6; 
   lcd.setCursor(15,3);
   lcd.print("   ");
   lcd.setCursor(15,3);
@@ -444,16 +446,16 @@ void save_Data()                                                                
 {
   Rtime = millis();                                                                 // Find the current time the the data was recorded
   int pwmPerc = pwm - OUTPUT_LOWER;                                                 // calculating the percentage output of the pwm 
-  pwmPerc = (pwmPerc/1.57);
+  pwmPerc = (pwmPerc/1.6);
   String com = ",";  
   String Mode = "#";  
   if (Boost == 1 && throttle == 0)
   {
-    String Mode = "A";      
+    Mode = "A";      
   }
   else if (Boost == 0 && throttle == 1)
   {
-    String Mode = "B";
+    Mode = "B";
   }
 
   digitalWrite(chipSelect,LOW);                                                     // Begin SPI interfacing by taking Chip Select LOW
