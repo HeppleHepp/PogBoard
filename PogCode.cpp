@@ -39,8 +39,6 @@ float Ratio                     = 3;          // calculate gear ratio using Driv
 volatile unsigned long motorPoll       = 0;   // A counter that only increases and reset when the RPM function is called
 unsigned long lastMotorSpeedPollTime   = 0;   
 unsigned long Atime         = 0;
-unsigned long RPM_Millis    = 0;
-const int RPM_Interval      = 750;
 float CurrentLimit          = 0;              //intial Current limit upon startup
 float batteryVoltage        = 0;              // variable to store battery voltage function
 float motorVoltage          = 0;
@@ -49,6 +47,7 @@ int MotorRPM                = 0;
 float tempOne               = 0;              //motor temp in degrees C
 float prev                  = 0;
 float mTarget               = 0;
+int rpmTarget               = 0;
 int pwm                     = 0;               
 int warp                    = 0;
 int gmem                    = 0;
@@ -63,10 +62,11 @@ unsigned long tempSenMillis = 0;
 unsigned long lcdMillis     = 0;
 unsigned long BoostMillis   = 0;
 unsigned long contMillis    = 0;
+unsigned long RPM_Millis    = 0;
 const int lcdInterval       = 500;
 const int BoostInterval     = 400;
 const int contInterval      = 200;
-const int tempSenInterval   = 4000;           // Timers/\/\/\/\
+const int RPM_Interval      = 750;
 
           
 #define VREF            A1                    // Input reference for Current sensor
@@ -80,9 +80,6 @@ const int tempSenInterval   = 4000;           // Timers/\/\/\/\
 #define Pot1_IN         A7
 #define Motor_Voltage   A6         
 
-DeviceAddress thermometerAddress;
-OneWire oneWire(ONE_WIRE_BUS);
-DallasTemperature tempSensor(&oneWire);
 
 /////////////////////////////////////////////////////////////////////////
 /*                                                                     *\ 
@@ -170,9 +167,8 @@ void setup()
   lcd.setCursor(0,2);
   lcd.print(F("V:"));
   
-  lcd.setCursor(10,2);
-  lcd.print(F("Temp:"));
-
+  lcd.setCursor(11,2)
+  lcd.print(F("RPM:"));
   
   lcd.setCursor(11,3);
   lcd.print(F("PWM:"));                                               //////////////////////////////////
@@ -229,8 +225,9 @@ void loop()
   {   
     if (throtGo == 0 && Boost == 1 && Current<=CurrentLimit)   //if this is the first time in loop 
     {
-        pwm = 85; 
-        mTarget = 5;                                                //roughly 25% throttle
+        pwm = 85;                                              //roughly 25% throttle
+        mTarget = 5;  
+        rpmTarget = 300                 
         throtGo = 1; 
         lcd.setCursor(0,3);
         lcd.print("AUTO");
@@ -256,9 +253,9 @@ void loop()
 
         if (Current > CurrentLimit)
         {
-            pwm -= 2;
-            
+            pwm -= 1;            
         }
+        
         else if (millis() >= contMillis + contInterval)                                          // Timer that updates the display and saves the data to the SD card every half a second (500ms)     
         {
           contMillis += contInterval;
@@ -271,17 +268,16 @@ void loop()
           {
               mTarget += 2;
               mTarget = constrain(mTarget,0,batteryVoltage);
-          }
-          
-        }
-        
+          }                 
+        }  
+             
         if (millis() >= contMillis + contInterval && pmem == 0)
         {
           contMillis += contInterval;
         }    
         pmem = 0;
         break;
-        
+               
       case 2:
         readCurrent();
         if(Current>CurrentLimit)
@@ -422,6 +418,11 @@ void display_LCD()                                                              
   lcd.print("     ");  
   lcd.setCursor(15,0);
   lcd.print(Speed);
+
+  lcd.setCursor(15,2);
+  lcd.print("     ");
+  lcd.setCursor(15,3);
+  lcd.print(MotorRPM);
      
   lcd.setCursor(6,2);
   lcd.print(" ");                                                                   // request the AmpHours be calculated
@@ -438,8 +439,7 @@ void display_LCD()                                                              
   lcd.setCursor(2,2);
   lcd.print(batteryVoltage);
 
-  lcd.setCursor(15,2);
-  lcd.print(tempOne);
+
 }
 
 void save_Data()                                                                    // Function to record all important data
@@ -498,15 +498,6 @@ void TimedEvents()                                                              
     MotorRPM = readMotorRPM();                                                      // read the motorRPM using the function
   }
 
-
-  if (millis()>= tempSenMillis + tempSenInterval)                                   // DO the same here but for a different time interval
-  {
-    tempSenMillis += tempSenInterval;                                   
-    tempSensor.requestTemperatures();                                               // use the Temp sensor library from Texas Instruments
-    displayTemp(tempSensor.getTempC(thermometerAddress));                           // don't particularly know what this is doing but you need it trust me XD
-    
-  }
-
 /*/
 NOTE: using this type of temp sensor can create delays of up to 300ms when using a 12 bit ADC (we use 10 Bit so it's 70ms) which is quite significant when controlling the car and searching for throttle inputs.
       To get rid of such a delay, it would be wise to use a sensor that does not rely on another library to gather the data as that is when unknown delays can occur as it isn't your code.
@@ -517,25 +508,14 @@ NOTE: using this type of temp sensor can create delays of up to 300ms when using
      lcdMillis += lcdInterval;
      display_LCD();
      
-     save_Data();
+     
   }
-}
-
-void displayTemp(float temperatureReading) {                                        // temperature comes in as a float with 2 decimal places
-
-  tempOne = temperatureReading;                          
-  
-}
-
-// More variables that are just needed to make the code work
-
-void printAddress(DeviceAddress deviceAddress)            
-{
-  for (uint8_t i = 0; i < 8; i++)
+  if (millis() >= dataMillis + dataInterval)  
   {
-    if (deviceAddress[i] < 16) Serial.print("0");
-    Serial.print(deviceAddress[i], HEX);
+    dataMillis += dataInterval;
+    save_Data();
   }
+  
 }
 
 // External interrupt triggered by the infrared sensor.
