@@ -8,9 +8,7 @@
 
 #include <math.h>                             // Include the inbuilt Maths library
 #include <SD.h>                               // Include the SD card communication library
-#include <Wire.h>                             // Wire library for the LCD I2C Communication
-#include <OneWire.h>                          // OneWire allows for Temp sensor to be read via a digital input pin
-#include <DallasTemperature.h>                
+#include <Wire.h>                             // Wire library for the LCD I2C Communication                
 #include <LiquidCrystal_I2C.h>
 LiquidCrystal_I2C lcd(0x27,20,4);             // Tells the Arduino the size of the LCD display (0x27) is the default address of I2C port
 
@@ -21,7 +19,7 @@ LiquidCrystal_I2C lcd(0x27,20,4);             // Tells the Arduino the size of t
 /////////////////////////////////////////////////////////////////////////
 
 const int LoCurrentLimit        = 15;         // 
-const int HiCurrentLimit        = 30;         // 
+const int HiCurrentLimit        = 20;         // 
 const int OUTPUT_UPPER          = 205;        // If you are using Loki as a data logger then these are not required :)
 const int OUTPUT_LOWER          = 45;         // The lower and higher values for the pwm output. Most PWM's e.g. the 4QD                                            
 const float ref_voltage         = 5;          // 5 Volt ref for readings
@@ -58,12 +56,13 @@ int Boost                   = 1;
 int throttle                = 1;
 int BoostLimit              = 0;
 unsigned long Rtime         = 0;              // Timers\/\/\/\/
-unsigned long tempSenMillis = 0;
 unsigned long lcdMillis     = 0;
+unsigned long dataMillis    = 0;
 unsigned long BoostMillis   = 0;
 unsigned long contMillis    = 0;
 unsigned long RPM_Millis    = 0;
 const int lcdInterval       = 500;
+const int dataInterval      = 150;
 const int BoostInterval     = 400;
 const int contInterval      = 200;
 const int RPM_Interval      = 750;
@@ -135,16 +134,6 @@ void setup()
   delay(400);
   lcd.clear();
   
-  
-  tempSensor.begin();                                                 // Initialise the temperature sensor library
-
-  if(!tempSensor.getAddress(thermometerAddress, 0 ))                  // Get the OneWire address of the thermometer
-  {
-  }
-  else {
-    printAddress(thermometerAddress);                                 // Input the address into the function found in the .cpp file
-  }
-  tempSensor.setResolution(thermometerAddress, 10);                   // <<--- Do not change unless you are using an 11 or 12 bit resolution device (Default for the board is 10)
    
   lcd.setCursor(0,1);
   lcd.print("Let's get the dub.");                                                   // Notify successful boot sequence
@@ -167,7 +156,7 @@ void setup()
   lcd.setCursor(0,2);
   lcd.print(F("V:"));
   
-  lcd.setCursor(11,2)
+  lcd.setCursor(11,2);
   lcd.print(F("RPM:"));
   
   lcd.setCursor(11,3);
@@ -227,7 +216,7 @@ void loop()
     {
         pwm = 85;                                              //roughly 25% throttle
         mTarget = 5;  
-        rpmTarget = 300                 
+        rpmTarget = 300;                 
         throtGo = 1; 
         lcd.setCursor(0,3);
         lcd.print("AUTO");
