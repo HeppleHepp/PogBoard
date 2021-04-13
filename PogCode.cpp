@@ -20,7 +20,7 @@ LiquidCrystal_I2C lcd(0x27,20,4);             // Tells the Arduino the size of t
 
 const int LoCurrentLimit        = 15;         // 
 const int HiCurrentLimit        = 20;         // 
-const int OUTPUT_UPPER          = 205;        // If you are using Loki as a data logger then these are not required :)
+const int OUTPUT_UPPER          = 255;        // If you are using Loki as a data logger then these are not required :)
 const int OUTPUT_LOWER          = 45;         // The lower and higher values for the pwm output. Most PWM's e.g. the 4QD                                            
 const float ref_voltage         = 5;          // 5 Volt ref for readings
 const float APB                 = 0.31;       // Amps per Bit (A calibrated thing)
@@ -64,7 +64,7 @@ unsigned long RPM_Millis    = 0;
 const int lcdInterval       = 500;
 const int dataInterval      = 150;
 const int BoostInterval     = 400;
-const int contInterval      = 200;
+const int contInterval      = 100;
 const int RPM_Interval      = 750;
 
           
@@ -197,7 +197,7 @@ void loop()
   throttle = digitalRead(throttlePin);
   Boost = digitalRead(Boost_Pin);
 
-  if (MotorRPM<900)
+  if (MotorRPM<1000)
   {
     CurrentLimit = LoCurrentLimit;
     warp = 1;
@@ -207,8 +207,18 @@ void loop()
     CurrentLimit = HiCurrentLimit;
     warp = 2;
   }
+ 
+ readCurrent();  
 
- readCurrent();     
+ if (millis() >= contMillis + contInterval)
+ {
+    contMillis += contInterval;
+    pmem = 1;
+ }    
+ else
+ {
+    pmem = 0;  
+ }
   
   if (throttle == 0 || Boost == 0 )
   {   
@@ -222,7 +232,7 @@ void loop()
         lcd.print("AUTO");
     }   
 
-    else if (Boost == 0 )
+    else if (Boost == 0)
     {
         warp = 3;
         if(tmem == 1)
@@ -233,6 +243,7 @@ void loop()
           lcd.print("BOOST");          
         }
     }
+
     switch(warp)
     {         
     case 1:
@@ -242,13 +253,12 @@ void loop()
 
         if (Current > CurrentLimit)
         {
-            pwm -= 1;            
+            pwm -= 1;    
+            break;        
         }
         
-        else if (millis() >= contMillis + contInterval)                                          // Timer that updates the display and saves the data to the SD card every half a second (500ms)     
+        else if (pmem == 1)                                          // Timer that updates the display and saves the data to the SD card every half a second (500ms)     
         {
-          contMillis += contInterval;
-          pmem = 1;
           if (motorVoltage <= mTarget)
           {
               pwm +=1;
@@ -259,11 +269,7 @@ void loop()
               mTarget = constrain(mTarget,0,batteryVoltage);
           }                 
         }  
-             
-        if (millis() >= contMillis + contInterval && pmem == 0)
-        {
-          contMillis += contInterval;
-        }    
+                
         pmem = 0;
         break;
                
@@ -410,7 +416,7 @@ void display_LCD()                                                              
 
   lcd.setCursor(15,2);
   lcd.print("     ");
-  lcd.setCursor(15,3);
+  lcd.setCursor(15,2);
   lcd.print(MotorRPM);
      
   lcd.setCursor(6,2);
@@ -419,9 +425,18 @@ void display_LCD()                                                              
   lcd.print(motorVoltage);
   
   lcd.setCursor(15,1); 
-  lcd.print("     ");
-  lcd.setCursor(15,1); 
-  lcd.print(BoostLimit);
+  lcd.print("    ");
+  if (BoostLimit == 55)
+  {
+    lcd.setCursor(15,1); 
+    lcd.print("MAX");
+  }
+  else
+  {
+    lcd.setCursor(15,1); 
+    lcd.print(BoostLimit);
+  }
+
 
   lcd.setCursor(6,2); 
   lcd.print(" ");
