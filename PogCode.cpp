@@ -42,7 +42,6 @@ float batteryVoltage        = 0;              // variable to store battery volta
 float motorVoltage          = 0;
 float Current               = 0;              // variable to store current function  
 int MotorRPM                = 0;
-float tempOne               = 0;              //motor temp in degrees C
 float prev                  = 0;
 float mTarget               = 0;
 int rpmTarget               = 0;
@@ -136,7 +135,7 @@ void setup()
   
    
   lcd.setCursor(0,1);
-  lcd.print("Let's get the dub.");                                                   // Notify successful boot sequence
+  lcd.print("Dababy: Let's GO!");                                                   // Notify successful boot sequence
   delay(800);
   
   lcd.clear();  
@@ -165,7 +164,7 @@ void setup()
 
   digitalWrite(chipSelect,LOW);                                                     // Begin SPI interfacing by taking Chip Select LOW
   
-  String (Spacer) = "Time,BattV,Curnt,MotoV,MRPM,MTemp,PWM,Mode";
+  String (Spacer) = "Time,BattV,Curnt,MotoV,MRPM,PWM,Mode";
   File dataFile = SD.open("datalog.txt", FILE_WRITE);                               // Write the datastring to the SD card 
   if(dataFile)                                                                      // check if the file has been created successfully or if it already exists
   {
@@ -224,8 +223,8 @@ void loop()
   {   
     if (throtGo == 0 && Boost == 1 && Current<=CurrentLimit)   //if this is the first time in loop 
     {
-        pwm = 85;                                              //roughly 25% throttle
-        mTarget = 5;  
+        pwm = 104;                                              //roughly 25% throttle
+        mTarget = 8;  
         rpmTarget = 300;                 
         throtGo = 1; 
         lcd.setCursor(0,3);
@@ -464,7 +463,7 @@ void save_Data()                                                                
 
   digitalWrite(chipSelect,LOW);                                                     // Begin SPI interfacing by taking Chip Select LOW
   
-  String (dataString) = String(Rtime)+(com)+String(batteryVoltage)+(com)+String(Current)+(com)+String(motorVoltage)+(com)+String(MotorRPM)+(com)+String(tempOne)+(com)+String(pwmPerc)+(com)+(Mode);   // Data to be written to SD card
+  String (dataString) = String(Rtime)+(com)+String(batteryVoltage)+(com)+String(Current)+(com)+String(motorVoltage)+(com)+String(MotorRPM)+(com)+(com)+String(pwmPerc)+(com)+(Mode);   // Data to be written to SD card
     
   File dataFile = SD.open("datalog.txt", FILE_WRITE);                               // Write the datastring to the SD card 
   if(dataFile)                                                                      // check if the file has been created successfully or if it already exists
