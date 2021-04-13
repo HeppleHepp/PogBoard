@@ -63,7 +63,7 @@ unsigned long RPM_Millis    = 0;
 const int lcdInterval       = 500;
 const int dataInterval      = 150;
 const int BoostInterval     = 400;
-const int contInterval      = 100;
+const int contInterval      = 175;
 const int RPM_Interval      = 350;
 
           
