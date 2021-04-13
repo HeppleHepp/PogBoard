@@ -65,7 +65,7 @@ const int lcdInterval       = 500;
 const int dataInterval      = 150;
 const int BoostInterval     = 400;
 const int contInterval      = 100;
-const int RPM_Interval      = 750;
+const int RPM_Interval      = 350;
 
           
 #define VREF            A1                    // Input reference for Current sensor
