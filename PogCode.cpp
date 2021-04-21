@@ -164,7 +164,7 @@ void setup()
 
   digitalWrite(chipSelect,LOW);                                                     // Begin SPI interfacing by taking Chip Select LOW
   
-  String (Spacer) = "Time,BattV,Curnt,MotoV,MRPM,PWM,Mode";
+  String (Spacer) = "Time,BattV,Curnt,MotoV,MRPM,PWM,Mode,BTL";
   File dataFile = SD.open("datalog.txt", FILE_WRITE);                               // Write the datastring to the SD card 
   if(dataFile)                                                                      // check if the file has been created successfully or if it already exists
   {
@@ -463,7 +463,7 @@ void save_Data()                                                                
 
   digitalWrite(chipSelect,LOW);                                                     // Begin SPI interfacing by taking Chip Select LOW
   
-  String (dataString) = String(Rtime)+(com)+String(batteryVoltage)+(com)+String(Current)+(com)+String(motorVoltage)+(com)+String(MotorRPM)+(com)+(com)+String(pwmPerc)+(com)+(Mode);   // Data to be written to SD card
+  String (dataString) = String(Rtime)+(com)+String(batteryVoltage)+(com)+String(Current)+(com)+String(motorVoltage)+(com)+String(MotorRPM)+(com)+String(pwmPerc)+(com)+(Mode)+(com)+String(BoostLimit);   // Data to be written to SD card
     
   File dataFile = SD.open("datalog.txt", FILE_WRITE);                               // Write the datastring to the SD card 
   if(dataFile)                                                                      // check if the file has been created successfully or if it already exists
