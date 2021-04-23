@@ -46,7 +46,7 @@ float Current               = 0;              // variable to store current funct
 float Error                 = 0;
 float prev                  = 0;
 float mTarget               = 0;
-float multiFac              = 0.2;
+float multiFac              = 0.5;
 int rpmTarget               = 0;
 int MotorRPM                = 0;
 int pwm                     = 0;               
@@ -114,7 +114,7 @@ void setup()
   pinMode(Motor_Voltage, INPUT);                                            //////////////////////////////////
 
   lcd.setCursor(0, 0);                                                // Display wake up to notify the board is working
-  lcd.print(F("LOKI"));
+  lcd.print(F("POGGERS"));
   delay(100);
   lcd.clear();  
 
@@ -150,7 +150,7 @@ void setup()
    
   lcd.setCursor(0,1);
   lcd.print("Dababy: Let's GO!");                                                   // Notify successful boot sequence
-  delay(800);
+  delay(1500);
   
   lcd.clear();  
                                                                       //////////////////////////////////
@@ -220,6 +220,12 @@ void loop()
     warp = 1;
   }
   else
+  {
+    CurrentLimit = HiCurrentLimit;
+    warp = 2;
+  }
+
+  if (MotorRPM < 200 && Current > 4 && motorVoltage > 3)
   {
     CurrentLimit = HiCurrentLimit;
     warp = 2;
