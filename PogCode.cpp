@@ -18,8 +18,8 @@ LiquidCrystal_I2C lcd(0x27,20,4);             // Tells the Arduino the size of t
 \*                                                                     */
 /////////////////////////////////////////////////////////////////////////
 const float autoTarget          = 23.5;       // The Motor Voltage target for the race
-const int LoCurrentLimit        = 15;         // 
-const int HiCurrentLimit        = 20;         // 
+const int LoCurrentLimit        = 20;         // 
+const int HiCurrentLimit        = 27;         // 
 const int OUTPUT_UPPER          = 205;        // If you are using Loki as a data logger then these are not required :)
 const int OUTPUT_LOWER          = 45;         // The lower and higher values for the pwm output. Most PWM's e.g. the 4QD                                            
 const float ref_voltage         = 5;          // 5 Volt ref for readings
