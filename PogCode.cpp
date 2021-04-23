@@ -17,7 +17,7 @@ LiquidCrystal_I2C lcd(0x27,20,4);             // Tells the Arduino the size of t
                 User variables to entered (Change these)
 \*                                                                     */
 /////////////////////////////////////////////////////////////////////////
-
+const float autoTarget          = 21.5;            // The Motor Voltage target for the race
 const int LoCurrentLimit        = 15;         // 
 const int HiCurrentLimit        = 20;         // 
 const int OUTPUT_UPPER          = 205;        // If you are using Loki as a data logger then these are not required :)
@@ -36,15 +36,19 @@ float Ratio                     = 3;          // calculate gear ratio using Driv
 
 volatile unsigned long motorPoll       = 0;   // A counter that only increases and reset when the RPM function is called
 unsigned long lastMotorSpeedPollTime   = 0;   
+const int AMPSENSOR_CAL_DELAY          = 3000;
+int  currentSensorOffset               = 0;    //offset value for the current sensor
 unsigned long Atime         = 0;
 float CurrentLimit          = 0;              //intial Current limit upon startup
 float batteryVoltage        = 0;              // variable to store battery voltage function
 float motorVoltage          = 0;
 float Current               = 0;              // variable to store current function  
-int MotorRPM                = 0;
+float Error                 = 0;
 float prev                  = 0;
 float mTarget               = 0;
+float multiFac              = 0.2;
 int rpmTarget               = 0;
+int MotorRPM                = 0;
 int pwm                     = 0;               
 int warp                    = 0;
 int gmem                    = 0;
@@ -63,14 +67,15 @@ unsigned long RPM_Millis    = 0;
 const int lcdInterval       = 500;
 const int dataInterval      = 150;
 const int BoostInterval     = 400;
-const int contInterval      = 175;
+const int contInterval      = 100;
 const int RPM_Interval      = 350;
+
 
           
 #define VREF            A1                    // Input reference for Current sensor
 #define chipSelect      10                    // define the chipselect for the SD card
-#define Battery_Voltage A3                  // define battery voltage read pin
-#define Boost_Pin      7                     // switch for override
+#define Battery_Voltage A3                    // define battery voltage read pin
+#define Boost_Pin       7                     // switch for override
 #define throttlePin     6                     // PTM Throttle mode 
 #define Amp_In          A0                    // Current sensor read pin
 #define PWM_PIN         9                     // pwm output pin
@@ -129,6 +134,15 @@ void setup()
     lcd.print(F("SD Success"));                                       
     
   }
+
+  long temp = 0;
+  int nReadings = AMPSENSOR_CAL_DELAY / 100; //Ten Readings Per Second
+  for (int i = 0; i < nReadings; i++)
+  {
+    temp += analogRead(Amp_In);
+    delay(AMPSENSOR_CAL_DELAY / nReadings);
+  }
+  currentSensorOffset = (float) temp / nReadings;
   
   delay(400);
   lcd.clear();
@@ -176,6 +190,10 @@ void setup()
   {
     Serial.println("error opening datalog.txt");
   }
+
+
+  
+  
   
 }
 
@@ -223,7 +241,7 @@ void loop()
   {   
     if (throtGo == 0 && Boost == 1 && Current<=CurrentLimit)   //if this is the first time in loop 
     {
-        pwm = 104;                                              //roughly 25% throttle
+        pwm = 135;                                              //roughly 45% throttle
         mTarget = 8;  
         rpmTarget = 300;                 
         throtGo = 1; 
@@ -236,7 +254,7 @@ void loop()
         warp = 3;
         if(tmem == 1)
         {
-          pwm = 104;                                            //roughly 35% output throttle
+          pwm = 135;                                            //roughly 45% output throttle
           tmem = 0; 
           lcd.setCursor(0,3);
           lcd.print("BOOST");          
@@ -273,18 +291,21 @@ void loop()
         break;
                
       case 2:
-        readCurrent();
-        if(Current>CurrentLimit)
-        {
-          pwm -= 2;
-          break;
-        }
-        else if (Current <= CurrentLimit)
-        {
-          pwm += 1;
-          break;
-        }    
 
+        readCurrent();
+        if (Current > CurrentLimit)
+        {
+            pwm -= 1;    
+            break;        
+        }
+        else
+        {        
+            Error = autoTarget - motorVoltage;
+            Error = Error * multiFac;
+            pwm = pwm + Error;  
+            break; 
+        }   
+               
       case 3:
         if(Current>BoostLimit)
         {
