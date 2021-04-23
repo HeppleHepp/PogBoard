@@ -1,4 +1,4 @@
-   /*/
+/*/
 /////////////////////////////////////////////////////////////////////////
 |                                 LOKI                                  |
 |                         Developed by Ben Hepple                       |
@@ -54,6 +54,7 @@ int warp                    = 0;
 int gmem                    = 0;
 int pmem                    = 0;
 int tmem                    = 1;
+int amem                    = 0;
 int throtGo                 = 0;
 int Boost                   = 1;
 int throttle                = 1;
@@ -224,19 +225,20 @@ void loop()
     CurrentLimit = HiCurrentLimit;
     warp = 2;
   }
-
+/*/
   if (MotorRPM < 200 && Current > 4 && motorVoltage > 3)
   {
     CurrentLimit = HiCurrentLimit;
     warp = 2;
   }
- 
+ /*/
  readCurrent();  
 
  if (millis() >= contMillis + contInterval)
  {
     contMillis += contInterval;
     pmem = 1;
+    amem += 1;
  }    
  else
  {
@@ -306,7 +308,7 @@ void loop()
             break;        
         }
 
-        else if (autoTarget > motorVoltage && pmem == 1)
+        if (autoTarget > motorVoltage && pmem == 1)
         {        
             pwm +=1;
             break;
@@ -343,6 +345,10 @@ void loop()
     lcd.print("     "); 
   } 
 
+  if (amem == 3)
+  {
+    amem = 0;
+  }
 
   if (pwm >= OUTPUT_UPPER)
   {
