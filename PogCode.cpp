@@ -17,7 +17,7 @@ LiquidCrystal_I2C lcd(0x27,20,4);             // Tells the Arduino the size of t
                 User variables to entered (Change these)
 \*                                                                     */
 /////////////////////////////////////////////////////////////////////////
-const float autoTarget          = 21.5;       // The Motor Voltage target for the race
+const float autoTarget          = 23.5;       // The Motor Voltage target for the race
 const int LoCurrentLimit        = 15;         // 
 const int HiCurrentLimit        = 20;         // 
 const int OUTPUT_UPPER          = 205;        // If you are using Loki as a data logger then these are not required :)
