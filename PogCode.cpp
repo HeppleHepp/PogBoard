@@ -1,4 +1,4 @@
-/*/
+   /*/
 /////////////////////////////////////////////////////////////////////////
 |                                 LOKI                                  |
 |                         Developed by Ben Hepple                       |
@@ -17,7 +17,7 @@ LiquidCrystal_I2C lcd(0x27,20,4);             // Tells the Arduino the size of t
                 User variables to entered (Change these)
 \*                                                                     */
 /////////////////////////////////////////////////////////////////////////
-const float autoTarget          = 21.5;            // The Motor Voltage target for the race
+const float autoTarget          = 21.5;       // The Motor Voltage target for the race
 const int LoCurrentLimit        = 15;         // 
 const int HiCurrentLimit        = 20;         // 
 const int OUTPUT_UPPER          = 205;        // If you are using Loki as a data logger then these are not required :)
@@ -245,6 +245,7 @@ void loop()
   
   if (throttle == 0 || Boost == 0 )
   {   
+    
     if (throtGo == 0 && Boost == 1 && Current<=CurrentLimit)   //if this is the first time in loop 
     {
         pwm = 135;                                              //roughly 45% throttle
@@ -304,13 +305,20 @@ void loop()
             pwm -= 1;    
             break;        
         }
-        else
+
+        else if (autoTarget > motorVoltage && pmem == 1)
         {        
-            Error = autoTarget - motorVoltage;
-            Error = Error * multiFac;
-            pwm = pwm + Error;  
-            break; 
-        }   
+            pwm +=1;
+            break;
+        } 
+        else if (autoTarget < motorVoltage && pmem == 0)
+        {
+          pwm -=1;
+          break;
+        }
+          
+        pmem = 0;
+        break;
                
       case 3:
         if(Current>BoostLimit)
@@ -512,7 +520,7 @@ void Pot1()
   PotIN = map(PotIN,0,1023,0,20);
                                                        
   BoostLimit = 15 + PotIN;                                                                    
-  if (PotIN == 20)
+  if (PotIN >= 19)
   {
     BoostLimit = 55;
   }
