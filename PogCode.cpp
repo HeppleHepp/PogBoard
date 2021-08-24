@@ -17,15 +17,14 @@ LiquidCrystal_I2C lcd(0x27,20,4);             // Tells the Arduino the size of t
                 User variables to entered (Change these)
 \*                                                                     */
 /////////////////////////////////////////////////////////////////////////
-const float autoTarget          = 23.5;       // The Motor Voltage target for the race
-const int LoCurrentLimit        = 20;         // 
-const int HiCurrentLimit        = 27;         // 
-const int OUTPUT_UPPER          = 205;        // If you are using Loki as a data logger then these are not required :)
-const int OUTPUT_LOWER          = 45;         // The lower and higher values for the pwm output. Most PWM's e.g. the 4QD                                            
+
+const int SetCurrentLimit       = 21;         // 
+const int OUTPUT_UPPER          = 255;        // If you are using Loki as a data logger then these are not required :)
+const int OUTPUT_LOWER          = 30;         // The lower and higher values for the pwm output. Most PWM's e.g. the 4QD                                            
 const float ref_voltage         = 5;          // 5 Volt ref for readings
 const float APB                 = 0.31;       // Amps per Bit (A calibrated thing)
-const float  totalWheelDiameter = 1.194;      // Wheel diameter in meters (Tyre inflated)
-float Ratio                     = 3;          // calculate gear ratio using DrivenGear/SprocketGear  <<<<-------- YOU MUST CHANGE THIS
+const float totalWheelCirumference = 1.194;   // Wheel diameter in meters (Tyre inflated)
+const int Ratio                 = 3;          // calculate gear ratio using DrivenGear/SprocketGear  <<<<-------- YOU MUST CHANGE THIS
 
 ////////////////////0/////////////////////////////////////////////////////
 /*                                                                     *\ 
@@ -43,33 +42,33 @@ float CurrentLimit          = 0;              //intial Current limit upon startu
 float batteryVoltage        = 0;              // variable to store battery voltage function
 float motorVoltage          = 0;
 float Current               = 0;              // variable to store current function  
-float Error                 = 0;
 float prev                  = 0;
 float mTarget               = 0;
-float multiFac              = 0.5;
-int rpmTarget               = 0;
+float multiFac              = 0.5;                                                                                                              
+float ATotal                = 0;
+long pasttime               = 0;
 int MotorRPM                = 0;
 int pwm                     = 0;               
 int warp                    = 0;
 int gmem                    = 0;
 int pmem                    = 0;
 int tmem                    = 1;
-int amem                    = 0;
 int throtGo                 = 0;
 int Boost                   = 1;
 int throttle                = 1;
 int BoostLimit              = 0;
+String Mode                 = "#";
 unsigned long Rtime         = 0;              // Timers\/\/\/\/
 unsigned long lcdMillis     = 0;
 unsigned long dataMillis    = 0;
 unsigned long BoostMillis   = 0;
 unsigned long contMillis    = 0;
-unsigned long RPM_Millis    = 0;
+//unsigned long RPM_Millis  = 0;
 const int lcdInterval       = 500;
 const int dataInterval      = 150;
 const int BoostInterval     = 400;
-const int contInterval      = 100;
-const int RPM_Interval      = 350;
+const int contInterval      = 0;             // VERY IMPORTANT make sure this is set to below 200 to avoid stupid thangs.
+//const int RPM_Interval    = 500;
 
 
           
@@ -145,13 +144,13 @@ void setup()
   }
   currentSensorOffset = (float) temp / nReadings;
   
-  delay(400);
+  delay(100);
   lcd.clear();
   
    
   lcd.setCursor(0,1);
   lcd.print("Dababy: Let's GO!");                                                   // Notify successful boot sequence
-  delay(1500);
+  delay(500);
   
   lcd.clear();  
                                                                       //////////////////////////////////
@@ -179,81 +178,63 @@ void setup()
 
   digitalWrite(chipSelect,LOW);                                                     // Begin SPI interfacing by taking Chip Select LOW
   
-  String (Spacer) = "Time,BattV,Curnt,MotoV,MRPM,PWM,Mode,BTL";
+  String Spacer = ",,,,,,,,";
   File dataFile = SD.open("datalog.txt", FILE_WRITE);                               // Write the datastring to the SD card 
   if(dataFile)                                                                      // check if the file has been created successfully or if it already exists
   {
     dataFile.println(Spacer); 
-    dataFile.close();
-    //Serial.println(dataString);
   }
   else
   {
     Serial.println("error opening datalog.txt");
   }
-
-
-  
-  
   
 }
 
 /////////////////////////////////////////////////////////////////////////
-/*                                     *\ 
+/*                                             *\ 
                     Main Loop
-\*                                     */
+\*                                             */
 /////////////////////////////////////////////////////////////////////////
   
 void loop()
 {
 
+
   batteryVoltage = readBatteryVoltage();
   motorVoltage = readMotorVoltage();
   Pot1();
   TimedEvents(); 
-  
+  readCurrent(); 
+
+
   throttle = digitalRead(throttlePin);
   Boost = digitalRead(Boost_Pin);
 
-  if (MotorRPM<1000)
-  {
-    CurrentLimit = LoCurrentLimit;
-    warp = 1;
-  }
-  else
-  {
-    CurrentLimit = HiCurrentLimit;
-    warp = 2;
-  }
+  CurrentLimit = SetCurrentLimit;
+  warp = 2;
+  
 /*/
-  if (MotorRPM < 200 && Current > 4 && motorVoltage > 3)
-  {
-    CurrentLimit = HiCurrentLimit;
-    warp = 2;
-  }
- /*/
- readCurrent();  
-
  if (millis() >= contMillis + contInterval)
  {
     contMillis += contInterval;
     pmem = 1;
-    amem += 1;
+    
  }    
  else
  {
     pmem = 0;  
  }
-  
+  /*/
   if (throttle == 0 || Boost == 0 )
   {   
     
     if (throtGo == 0 && Boost == 1 && Current<=CurrentLimit)   //if this is the first time in loop 
     {
         pwm = 135;                                              //roughly 45% throttle
-        mTarget = 8;  
-        rpmTarget = 300;                 
+        mTarget = 8;                   
         throtGo = 1; 
+        Mode = "5"; 
         lcd.setCursor(0,3);
         lcd.print("AUTO");
     }   
@@ -261,6 +242,7 @@ void loop()
     else if (Boost == 0)
     {
         warp = 3;
+        Mode = "10"; 
         if(tmem == 1)
         {
           pwm = 135;                                            //roughly 45% output throttle
@@ -272,55 +254,24 @@ void loop()
 
     switch(warp)
     {         
-    case 1:
-        readCurrent();
-        batteryVoltage = readBatteryVoltage();
-        motorVoltage = readMotorVoltage();     
 
-        if (Current > CurrentLimit)
-        {
-            pwm -= 1;    
-            break;        
-        }
-        
-        else if (pmem == 1)                                          // Timer that updates the display and saves the data to the SD card every half a second (500ms)     
-        {
-          if (motorVoltage <= mTarget)
-          {
-              pwm +=1;
-          }
-          else if (motorVoltage > mTarget)
-          {
-              mTarget += 2;
-              mTarget = constrain(mTarget,0,batteryVoltage);
-          }                 
-        }  
-                
-        pmem = 0;
-        break;
-               
-      case 2:
+
+          
+    case 2:
 
         readCurrent();
         if (Current > CurrentLimit)
         {
-            pwm -= 1;    
-            break;        
+            pwm -= 1;  
+            break;                
         }
-
-        if (autoTarget > motorVoltage && pmem == 1)
-        {        
-            pwm +=1;
-            break;
-        } 
-        else if (autoTarget < motorVoltage && pmem == 0)
+        else if (Current < CurrentLimit)
         {
-          pwm -=1;
+          pwm += 1; 
           break;
         }
-          
-        pmem = 0;
-        break;
+        
+        
                
       case 3:
         if(Current>BoostLimit)
@@ -341,14 +292,18 @@ void loop()
     pwm = 0;
     throtGo = 0;
     gmem = 0;
+    if (motorVoltage >= 2)
+    {
+        Mode = "40";
+    }
+    else{
+        Mode = "0"; 
+    }
     lcd.setCursor(0,3);               
     lcd.print("     "); 
   } 
 
-  if (amem == 3)
-  {
-    amem = 0;
-  }
+
 
   if (pwm >= OUTPUT_UPPER)
   {
@@ -360,7 +315,8 @@ void loop()
   }
   //Serial.println(pwm);
   analogWrite(PWM_PIN,pwm); //Upload calculated pwm value      
-}       
+}
+     
 
 
 /////////////////////////////////////////////////////////////////////////
@@ -383,6 +339,7 @@ void readCurrent ()
   }
   Current = prev/4;
   prev = 0;
+  calc_amp();
 }
 
 float readBatteryVoltage()
@@ -436,14 +393,14 @@ void display_LCD()                                                              
 {
     
   float Speed = (((MotorRPM/Ratio)*1.194*60)/1.609)/1000;                           // calculation to find the speed of the car in MPH using the Motor Shaft RPM   
+  int pwmPerc = pwm - OUTPUT_LOWER;                                                 // calculating the percentage output of the pwm 
+  pwmPerc = pwmPerc/1.6; 
 
   lcd.setCursor(6,2); 
   lcd.print(" ");
   lcd.setCursor(2,0);                                                               // lcd.setCursor updates the location of the 'Cursor'
   lcd.print(Current);                                                               // lcd.print will then display the variable or string chosen on that cursor location
-
-  int pwmPerc = pwm - OUTPUT_LOWER;                                                 // calculating the percentage output of the pwm 
-  pwmPerc = pwmPerc/1.6; 
+ 
   lcd.setCursor(15,3);
   lcd.print("   ");
   lcd.setCursor(15,3);
@@ -492,19 +449,9 @@ void save_Data()                                                                
   int pwmPerc = pwm - OUTPUT_LOWER;                                                 // calculating the percentage output of the pwm 
   pwmPerc = (pwmPerc/1.6);
   String com = ",";  
-  String Mode = "#";  
-  if (Boost == 1 && throttle == 0)
-  {
-    Mode = "A";      
-  }
-  else if (Boost == 0 && throttle == 1)
-  {
-    Mode = "B";
-  }
-
   digitalWrite(chipSelect,LOW);                                                     // Begin SPI interfacing by taking Chip Select LOW
   
-  String (dataString) = String(Rtime)+(com)+String(batteryVoltage)+(com)+String(Current)+(com)+String(motorVoltage)+(com)+String(MotorRPM)+(com)+String(pwmPerc)+(com)+(Mode)+(com)+String(BoostLimit);   // Data to be written to SD card
+  String (dataString) = String(Rtime)+(com)+String(batteryVoltage)+(com)+String(Current)+(com)+String(motorVoltage)+(com)+String(MotorRPM)+(com)+String(pwmPerc)+(com)+(Mode)+(com)+String(BoostLimit)+(com)+String(ATotal);   // Data to be written to SD card
     
   File dataFile = SD.open("datalog.txt", FILE_WRITE);                               // Write the datastring to the SD card 
   if(dataFile)                                                                      // check if the file has been created successfully or if it already exists
@@ -513,34 +460,43 @@ void save_Data()                                                                
     dataFile.close();
     //Serial.println(dataString);
   }
-  else
-  {
-    Serial.println("error opening datalog.txt");
-  }
   
 }
 
 void Pot1()
 {
   float PotIN = analogRead(Pot1_IN);
-  PotIN = map(PotIN,0,1023,0,20);
-                                                       
-  BoostLimit = 15 + PotIN;                                                                    
-  if (PotIN >= 19)
+  PotIN = map(PotIN,0,1023,0,20);                                                     
+  BoostLimit = 14 + PotIN;                                                                    
+  if (PotIN <= 2)
   {
-    BoostLimit = 55;
+    BoostLimit = 10;
   }
   
 }
 
+void calc_amp()
+{ 
+  long nowtime = millis();
+  float difference = nowtime - pasttime;
+  pasttime = nowtime;
+  
+  float Atime = (Current*1000) * difference;
+  float Ahours = (Atime/1000)/3600;
+
+  ATotal = ATotal + Ahours;
+}
+
+
 void TimedEvents()                                                                  // Seperate function for timers
 {
   
-  if (millis() >= RPM_Millis + RPM_Interval)                                        // millis() delay that allows code to run while waiting a set interval that is equal to RPM_Interval
-  {
-    RPM_Millis += RPM_Interval;                                                     // stack the interval to update the delay loop
-    MotorRPM = readMotorRPM();                                                      // read the motorRPM using the function
-  }
+
+  //if (millis() >= RPM_Millis + RPM_Interval)                                        // millis() delay that allows code to run while waiting a set interval that is equal to RPM_Interval
+  //{
+    //RPM_Millis += RPM_Interval;                                                     // stack the interval to update the delay loop
+    //MotorRPM = readMotorRPM();                                                      // read the motorRPM using the function
+  //}
 
 /*/
 NOTE: using this type of temp sensor can create delays of up to 300ms when using a 12 bit ADC (we use 10 Bit so it's 70ms) which is quite significant when controlling the car and searching for throttle inputs.
@@ -551,9 +507,9 @@ NOTE: using this type of temp sensor can create delays of up to 300ms when using
   {
      lcdMillis += lcdInterval;
      display_LCD();
-     
-     
+     MotorRPM = readMotorRPM();      
   }
+
   if (millis() >= dataMillis + dataInterval)  
   {
     dataMillis += dataInterval;
